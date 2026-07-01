@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>果蔬导航</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-dark: #0f0f0f; --bg-card: #181818; --bg-card-hover: #202020;
+            --border: #2a2a2a; --text-primary: #eaeaea; --text-secondary: #888888;
+            --accent: #c4a96b; --accent-light: #dccba0;
+        }
+        body {
+            font-family: 'Noto Sans SC', -apple-system, sans-serif;
+            background: var(--bg-dark); color: var(--text-primary);
+            line-height: 1.6; min-height: 100vh; overflow-x: hidden;
+        }
+        .cursor-glow {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 9999;
+            background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(196, 169, 107, 0.06), transparent 40%);
+            transition: background 0.1s ease;
+        }
+        .hero {
+            position: relative; width: 100%; height: 480px;
+            overflow: hidden; display: flex; align-items: center; justify-content: center;
+        }
+        .hero-bg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover; filter: brightness(0.4); z-index: 0;
+            transition: transform 0.3s ease-out;
+        }
+        .hero-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(15,15,15,0.3) 0%, rgba(15,15,15,0.85) 70%, var(--bg-dark) 100%);
+            z-index: 1;
+        }
+        .hero-content {
+            position: relative; z-index: 2; text-align: center; padding: 0 20px;
+            transition: transform 0.3s ease-out;
+        }
+        .hero-title {
+            font-family: 'Noto Serif SC', serif; font-size: 3.4rem; font-weight: 300;
+            color: #fff; letter-spacing: 14px; margin-bottom: 16px;
+            text-shadow: 0 2px 30px rgba(0,0,0,0.6);
+        }
+        .hero-line { width: 50px; height: 1px; background: var(--accent); margin: 0 auto 16px; opacity: 0.6; }
+        .hero-subtitle { font-size: 0.9rem; color: var(--accent-light); font-weight: 300; letter-spacing: 8px; text-transform: uppercase; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px 60px; position: relative; z-index: 1; }
+        .section-header { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 10px; margin-bottom: 6px; }
+        .section-line { width: 40px; height: 1px; background: var(--border); }
+        .section-label { font-size: 0.7rem; color: var(--text-secondary); letter-spacing: 4px; text-transform: uppercase; }
+        .filter-bar { display: flex; justify-content: center; gap: 10px; margin: 40px 0 42px; flex-wrap: wrap; }
+        .filter-btn {
+            padding: 9px 24px; border: 1px solid var(--border); background: transparent;
+            color: var(--text-secondary); border-radius: 2px; cursor: pointer; font-size: 0.85rem;
+            letter-spacing: 2px; transition: all 0.35s ease; font-family: 'Noto Sans SC', sans-serif;
+            position: relative; overflow: hidden;
+        }
+        .filter-btn::before {
+            content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(196, 169, 107, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+        .filter-btn:hover::before { left: 100%; }
+        .filter-btn:hover { border-color: var(--accent); color: var(--accent-light); }
+        .filter-btn.active { background: var(--accent); color: var(--bg-dark); border-color: var(--accent); font-weight: 500; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 24px; perspective: 1000px; }
+        .card {
+            background: var(--bg-card); border-radius: 3px; overflow: hidden; cursor: pointer;
+            transition: transform 0.1s ease-out, box-shadow 0.3s ease, border-color 0.3s ease;
+            border: 1px solid var(--border); position: relative; transform-style: preserve-3d; will-change: transform;
+        }
+        .card:hover { border-color: #3a3a3a; box-shadow: 0 20px 50px rgba(0,0,0,0.5); z-index: 2; }
+        .card:hover .card-img img { transform: scale(1.08); filter: brightness(0.85); }
+        .card-img { width: 100%; height: 190px; overflow: hidden; position: relative; background: #222; display: flex; align-items: center; justify-content: center; }
+        .card-img::after {
+            content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 45%;
+            background: linear-gradient(to top, rgba(24,24,24,0.8) 0%, transparent 100%);
+            z-index: 1; pointer-events: none;
+        }
+        .card-img img { width: 100%; height: 100%; object-fit: cover; transition: all 0.5s ease; display: block; position: absolute; top: 0; left: 0; }
+        .card-img-fallback { width: 100%; height: 100%; display: none; align-items: center; justify-content: center; background: #222; font-size: 3.5rem; position: relative; z-index: 2; }
+        .card-info { padding: 18px 18px 22px; }
+        .card-name { font-family: 'Noto Serif SC', serif; font-size: 1.15rem; color: var(--text-primary); font-weight: 400; margin-bottom: 2px; letter-spacing: 1px; }
+        .card-en { font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 2px; font-weight: 300; }
+        .card-divider { width: 20px; height: 1px; background: var(--accent); margin: 10px 0; opacity: 0.5; transition: width 0.35s ease, opacity 0.35s ease; }
+        .card:hover .card-divider { width: 40px; opacity: 0.9; }
+        .card-tag { display: inline-block; padding: 3px 10px; background: rgba(196, 169, 107, 0.08); color: var(--accent); font-size: 0.7rem; border-radius: 1px; letter-spacing: 1px; border: 1px solid rgba(196, 169, 107, 0.15); }
+        .hidden { display: none !important; }
+        .loading-placeholder { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #1a1a1a; display: flex; align-items: center; justify-content: center; z-index: 3; transition: opacity 0.3s ease; }
+        .loading-placeholder.loaded { opacity: 0; pointer-events: none; }
+        .loading-spinner { width: 30px; height: 30px; border: 2px solid #333; border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(12px); z-index: 1000; display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: all 0.4s ease; }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal { background: var(--bg-card); border-radius: 3px; max-width: 640px; width: 92%; max-height: 88vh; overflow-y: auto; position: relative; transform: translateY(40px) scale(0.96); transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94); box-shadow: 0 30px 80px rgba(0,0,0,0.7); border: 1px solid var(--border); }
+        .modal-overlay.active .modal { transform: translateY(0) scale(1); }
+        .modal-header { position: relative; overflow: hidden; border-radius: 3px 3px 0 0; }
+        .modal-img { width: 100%; height: 260px; overflow: hidden; position: relative; background: #222; }
+        .modal-img::after { content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 55%; background: linear-gradient(to top, rgba(24,24,24,0.95) 0%, transparent 100%); z-index: 1; }
+        .modal-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .modal-img-fallback { width: 100%; height: 100%; display: none; align-items: center; justify-content: center; font-size: 5rem; }
+        .modal-title-area { position: absolute; bottom: 0; left: 0; width: 100%; padding: 26px 30px; z-index: 2; }
+        .modal-close { position: absolute; top: 16px; right: 16px; width: 40px; height: 40px; border: 1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.4); border-radius: 50%; cursor: pointer; font-size: 1.1rem; color: rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center; transition: all 0.25s ease; z-index: 10; backdrop-filter: blur(4px); }
+        .modal-close:hover { background: rgba(0,0,0,0.6); color: #fff; border-color: rgba(255,255,255,0.25); transform: rotate(90deg); }
+        .modal-title { font-family: 'Noto Serif SC', serif; font-size: 1.9rem; color: #fff; font-weight: 400; letter-spacing: 2px; margin-bottom: 2px; text-shadow: 0 1px 8px rgba(0,0,0,0.5); }
+        .modal-en { color: var(--accent-light); font-size: 0.8rem; letter-spacing: 3px; text-transform: uppercase; font-weight: 300; }
+        .modal-body { padding: 30px 32px 34px; }
+        .info-section { margin-bottom: 28px; }
+        .info-section:last-child { margin-bottom: 0; }
+        .info-title { font-size: 0.72rem; color: var(--accent); font-weight: 500; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; letter-spacing: 2px; text-transform: uppercase; font-family: 'Noto Sans SC', sans-serif; }
+        .info-title::before { content: ''; display: inline-block; width: 14px; height: 1px; background: var(--accent); }
+        .info-content { color: var(--text-secondary); font-size: 0.92rem; line-height: 1.9; padding-left: 22px; }
+        .nutrition-tags { display: flex; flex-wrap: wrap; gap: 8px; padding-left: 22px; }
+        .nutrition-tag { padding: 5px 14px; background: rgba(196, 169, 107, 0.06); color: var(--accent-light); border-radius: 1px; font-size: 0.82rem; border: 1px solid rgba(196, 169, 107, 0.12); letter-spacing: 1px; }
+        .tip-box { background: rgba(196, 169, 107, 0.04); border-left: 2px solid var(--accent); padding: 14px 18px; border-radius: 0 2px 2px 0; font-size: 0.88rem; color: var(--text-secondary); line-height: 1.8; }
+        footer { text-align: center; padding: 60px 20px 40px; position: relative; z-index: 1; }
+        .footer-line { width: 30px; height: 1px; background: var(--accent); margin: 0 auto 16px; opacity: 0.4; }
+        footer p { color: var(--text-secondary); font-size: 0.8rem; letter-spacing: 3px; font-weight: 300; }
+        @media (max-width: 600px) {
+            .hero { height: 340px; } .hero-title { font-size: 2.4rem; letter-spacing: 8px; } .hero-subtitle { font-size: 0.78rem; letter-spacing: 4px; }
+            .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; } .card-img { height: 135px; }
+            .card-info { padding: 14px 14px 18px; } .card-name { font-size: 1rem; } .modal-img { height: 200px; }
+            .modal-body { padding: 22px 20px 26px; } .modal-title { font-size: 1.5rem; } .modal-title-area { padding: 18px 20px; }
+            .info-content, .nutrition-tags, .tip-box { padding-left: 0; } .filter-btn { padding: 7px 16px; font-size: 0.8rem; }
+            .cursor-glow { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="cursor-glow" id="cursorGlow"></div>
+    <section class="hero" id="hero">
+        <img class="hero-bg" id="heroBg" src="images/hero.jpg" alt="果蔬" onerror="this.src='https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=1920&q=80'">
+        <div class="hero-overlay"></div>
+        <div class="hero-content" id="heroContent">
+            <h1 class="hero-title">果蔬导航</h1>
+            <div class="hero-line"></div>
+            <p class="hero-subtitle">Fresh · Natural · Healthy</p>
+        </div>
+    </section>
+    <div class="container">
+        <div class="section-header">
+            <div class="section-line"></div>
+            <span class="section-label">Collection</span>
+            <div class="section-line"></div>
+        </div>
+        <div class="filter-bar">
+            <button class="filter-btn active" data-filter="all">全部</button>
+            <button class="filter-btn" data-filter="fruit">水果</button>
+            <button class="filter-btn" data-filter="vegetable">蔬菜</button>
+            <button class="filter-btn" data-filter="berry">浆果</button>
+            <button class="filter-btn" data-filter="citrus">柑橘</button>
+            <button class="filter-btn" data-filter="leaf">叶菜</button>
+        </div>
+        <div class="grid" id="grid"></div>
+    </div>
+    <footer>
+        <div class="footer-line"></div>
+        <p>果蔬导航 · 健康生活每一天</p>
+    </footer>
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <button class="modal-close" id="modalClose">✕</button>
+                <div class="modal-img">
+                    <img id="modalImg" src="" alt="" loading="lazy" onerror="this.style.display='none'; this.parentElement.querySelector('.modal-img-fallback').style.display='flex';">
+                    <div class="modal-img-fallback"><span id="modalIconFallback">🍎</span></div>
+                </div>
+                <div class="modal-title-area">
+                    <div class="modal-title" id="modalTitle">苹果</div>
+                    <div class="modal-en" id="modalEn">Apple</div>
+                </div>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+    <script>
+        const produceData = [
+            { id: 'apple', icon: '🍎', name: '苹果', en: 'Apple', category: 'fruit', img: 'images/apple.jpg', nutrition: ['维生素C', '膳食纤维', '钾', '多酚'], desc: '苹果是最常见的水果之一，口感清脆，味道甜酸适中。富含果胶和膳食纤维，有助于消化和肠道健康。', benefit: '促进消化，降低胆固醇，抗氧化，有助于控制体重。', tip: '挑选时选择表皮光滑、色泽均匀、无明显伤痕的果实。' },
+            { id: 'banana', icon: '🍌', name: '香蕉', en: 'Banana', category: 'fruit', img: 'images/banana.jpg', nutrition: ['钾', '维生素B6', '维生素C', '镁'], desc: '香蕉软糯香甜，是补充能量的理想水果。富含钾元素，有助于维持电解质平衡。', benefit: '补充能量，缓解肌肉疲劳，改善心情，促进睡眠。', tip: '表皮有少量黑斑的香蕉更甜，但不宜久放。' },
+            { id: 'pear', icon: '🍐', name: '梨', en: 'Pear', category: 'fruit', img: 'images/pear.jpg', nutrition: ['膳食纤维', '维生素C', '铜', '钾'], desc: '梨水分充足，口感清甜多汁。中医认为梨有润肺止咳的功效。', benefit: '润肺止咳，清热降火，促进消化，补充水分。', tip: '梨皮营养丰富，清洗干净后可连皮食用。' },
+            { id: 'peach', icon: '🍑', name: '桃子', en: 'Peach', category: 'fruit', img: 'images/peach.jpg', nutrition: ['维生素C', '维生素A', '钾', '纤维'], desc: '桃子香气浓郁，果肉细腻多汁。含有丰富的抗氧化物质。', benefit: '抗氧化，美容养颜，促进肠道蠕动，增强免疫力。', tip: '挑选时轻按果肉，有弹性但不软塌的最佳。' },
+            { id: 'watermelon', icon: '🍉', name: '西瓜', en: 'Watermelon', category: 'fruit', img: 'images/watermelon.jpg', nutrition: ['番茄红素', '维生素C', '瓜氨酸', '钾'], desc: '西瓜是夏季消暑佳品，含水量高达90%以上。番茄红素含量丰富。', benefit: '清热解暑，利尿消肿，抗氧化，保护心血管。', tip: '挑选时轻拍西瓜，声音清脆、底部发黄者为熟。' },
+            { id: 'cantaloupe', icon: '🍈', name: '哈密瓜', en: 'Cantaloupe', category: 'fruit', img: 'images/cantaloupe.jpg', nutrition: ['维生素A', '维生素C', '钾', '叶酸'], desc: '哈密瓜甜度高，香气浓郁。果肉橙黄，质地细腻。', benefit: '保护视力，增强免疫力，促进造血，抗氧化。', tip: '瓜脐越小、网纹越密、香气越浓的品质越好。' },
+            { id: 'mango', icon: '🥭', name: '芒果', en: 'Mango', category: 'fruit', img: 'images/mango.jpg', nutrition: ['维生素A', '维生素C', '叶酸', '膳食纤维'], desc: '芒果被誉为"热带水果之王"，果肉细腻，香甜浓郁。', benefit: '保护视力，增强免疫，促进消化，改善皮肤。', tip: '轻按有弹性、果皮颜色均匀、有浓郁香气的为佳。' },
+            { id: 'pineapple', icon: '🍍', name: '菠萝', en: 'Pineapple', category: 'fruit', img: 'images/pineapple.jpg', nutrition: ['维生素C', '锰', '菠萝蛋白酶', '膳食纤维'], desc: '菠萝酸甜可口，含有独特的菠萝蛋白酶，有助于蛋白质分解。', benefit: '促进消化，抗炎消肿，增强免疫力，美容养颜。', tip: '挑选时叶子翠绿、果实饱满、散发浓郁香气的为好。' },
+            { id: 'kiwi', icon: '🥝', name: '猕猴桃', en: 'Kiwi', category: 'fruit', img: 'images/kiwi.jpg', nutrition: ['维生素C', '维生素K', '膳食纤维', '钾'], desc: '猕猴桃是维生素C之王，一颗即可满足一天所需。果肉翠绿或金黄。', benefit: '美白抗氧化，促进消化，改善睡眠，保护心血管。', tip: '选择稍硬的，与苹果一起放可加速催熟。' },
+            { id: 'grape', icon: '🍇', name: '葡萄', en: 'Grape', category: 'fruit', img: 'images/grape.jpg', nutrition: ['花青素', '白藜芦醇', '维生素C', '钾'], desc: '葡萄口感多汁，颜色从绿到紫红不等。深色葡萄抗氧化能力更强。', benefit: '抗氧化，保护心血管，改善记忆，缓解疲劳。', tip: '果粒紧密、果霜均匀、果梗青绿的更新鲜。' },
+            { id: 'cherry', icon: '🍒', name: '樱桃', en: 'Cherry', category: 'fruit', img: 'images/cherry.jpg', nutrition: ['花青素', '维生素C', '钾', '褪黑素'], desc: '樱桃色泽鲜艳，口感酸甜多汁。含有丰富的铁元素和花青素。', benefit: '补血养颜，改善睡眠，抗氧化，缓解关节疼痛。', tip: '果梗翠绿、果皮光亮、果肉硬挺者为佳。' },
+            { id: 'coconut', icon: '🥥', name: '椰子', en: 'Coconut', category: 'fruit', img: 'images/coconut.jpg', nutrition: ['中链脂肪酸', '锰', '铜', '纤维'], desc: '椰子水清甜解渴，椰肉香滑浓郁。椰子油是健康烹饪用油。', benefit: '补充电解质，提供快速能量，滋润肌肤，促进代谢。', tip: '摇晃有水声、外壳无裂纹、重量较重的椰子更优。' },
+            { id: 'strawberry', icon: '🍓', name: '草莓', en: 'Strawberry', category: 'berry', img: 'images/strawberry.jpg', nutrition: ['维生素C', '叶酸', '锰', '花青素'], desc: '草莓外形可爱，酸甜适口。维生素C含量极高，是春季代表性水果。', benefit: '美白抗氧化，促进造血，保护心血管，改善记忆力。', tip: '颜色均匀鲜红、蒂叶翠绿、表面籽粒清晰的为好。' },
+            { id: 'blueberry', icon: '🫐', name: '蓝莓', en: 'Blueberry', category: 'berry', img: 'images/blueberry.jpg', nutrition: ['花青素', '维生素C', '维生素K', '锰'], desc: '蓝莓被誉为"超级水果"，花青素含量极高，对眼睛尤为有益。', benefit: '护眼明目，抗氧化，改善记忆，调节血糖。', tip: '表面果霜完整、颗粒饱满、颜色深蓝偏紫的品质好。' },
+            { id: 'blackberry', icon: '🍇', name: '黑莓', en: 'Blackberry', category: 'berry', img: 'images/blackberry.jpg', nutrition: ['花青素', '维生素C', '维生素K', '锰'], desc: '黑莓颜色深紫近黑，口感酸甜，营养丰富，抗氧化能力强。', benefit: '强效抗氧化，增强免疫力，改善肠道健康，保护大脑。', tip: '选择饱满有光泽、无软烂、颜色均匀的果实。' },
+            { id: 'raspberry', icon: '🍒', name: '覆盆子', en: 'Raspberry', category: 'berry', img: 'images/raspberry.jpg', nutrition: ['花青素', '维生素C', '纤维', '锰'], desc: '覆盆子又称树莓，口感柔软酸甜，香气独特，常用于甜点和果酱。', benefit: '抗氧化，改善消化，调节血糖，保护女性健康。', tip: '颜色鲜艳、颗粒完整、无渗出汁液的为佳。' },
+            { id: 'cranberry', icon: '🍓', name: '蔓越莓', en: 'Cranberry', category: 'berry', img: 'images/cranberry.jpg', nutrition: ['原花青素', '维生素C', '纤维', '锰'], desc: '蔓越莓味道极酸，通常加工成果汁或果干食用。对泌尿系统有益。', benefit: '预防尿路感染，抗氧化，保护口腔健康，降低胆固醇。', tip: '新鲜蔓越莓颜色鲜红、果皮光滑、有弹性为佳。' },
+            { id: 'goji', icon: '🫐', name: '枸杞', en: 'Goji Berry', category: 'berry', img: 'images/goji.jpg', nutrition: ['枸杞多糖', '胡萝卜素', '维生素C', '铁'], desc: '枸杞是中医常用的滋补佳品，红色小颗粒，可泡水或煲汤。', benefit: '滋补肝肾，明目养血，增强免疫力，抗衰老。', tip: '颜色暗红、颗粒饱满、无结块、干燥不粘手为佳。' },
+            { id: 'orange', icon: '🍊', name: '橙子', en: 'Orange', category: 'citrus', img: 'images/orange.jpg', nutrition: ['维生素C', '叶酸', '钾', '柠檬酸'], desc: '橙子是最受欢迎的柑橘类水果，酸甜多汁，香气清新。', benefit: '增强免疫力，促进铁吸收，降低胆固醇，消除疲劳。', tip: '果皮光滑紧致、重量较重、散发浓郁香气的更甜。' },
+            { id: 'lemon', icon: '🍋', name: '柠檬', en: 'Lemon', category: 'citrus', img: 'images/lemon.jpg', nutrition: ['维生素C', '柠檬酸', '钾', '类黄酮'], desc: '柠檬味道极酸，通常用于调味或泡水。具有清新的香气。', benefit: '美白养颜，促进消化，净化血液，提神醒脑。', tip: '选择果皮光滑、颜色鲜黄、手感沉重的柠檬。' },
+            { id: 'pomelo', icon: '🍊', name: '柚子', en: 'Pomelo', category: 'citrus', img: 'images/pomelo.jpg', nutrition: ['维生素C', '钾', '膳食纤维', '柚皮苷'], desc: '柚子是柑橘类中最大的品种，果肉粒粒分明，清甜爽口。', benefit: '降火消食，止咳化痰，降脂减肥，保护血管。', tip: '同等大小选重的，底部平坦、表皮光滑细腻的更佳。' },
+            { id: 'lime', icon: '🍋', name: '青柠', en: 'Lime', category: 'citrus', img: 'images/lime.jpg', nutrition: ['维生素C', '柠檬酸', '叶酸', '钾'], desc: '青柠皮绿味酸，是东南亚菜肴和饮品的重要调味料。', benefit: '促进消化，增强免疫，抗氧化，清新口气。', tip: '表皮光滑有光泽、手感沉重、颜色鲜绿的为好。' },
+            { id: 'kumquat', icon: '🍊', name: '金桔', en: 'Kumquat', category: 'citrus', img: 'images/kumquat.jpg', nutrition: ['维生素C', '纤维', '钙', '类黄酮'], desc: '金桔个头小巧，可连皮食用。味道甜中带酸，芳香怡人。', benefit: '理气化痰，消食醒酒，美容养颜，预防感冒。', tip: '果皮金黄有光泽、大小均匀、手感沉甸甸的为佳。' },
+            { id: 'tangerine', icon: '🍊', name: '橘子', en: 'Tangerine', category: 'citrus', img: 'images/tangerine.jpg', nutrition: ['维生素C', '叶酸', '钾', '柠檬酸'], desc: '橘子皮薄易剥，果肉甘甜多汁，是冬季常见水果。', benefit: '润肺止咳，开胃理气，补充维生素，缓解疲劳。', tip: '选择皮薄有弹性、底部有圆脐、掂量沉重的为好。' },
+            { id: 'tomato', icon: '🍅', name: '番茄', en: 'Tomato', category: 'vegetable', img: 'images/tomato.jpg', nutrition: ['番茄红素', '维生素C', '钾', '叶酸'], desc: '番茄既可当蔬菜也可当水果。番茄红素是强效抗氧化剂。', benefit: '抗氧化防癌，保护心血管，美白防晒，促进消化。', tip: '自然成熟的颜色均匀、果蒂翠绿、捏起来有弹性的更好。' },
+            { id: 'carrot', icon: '🥕', name: '胡萝卜', en: 'Carrot', category: 'vegetable', img: 'images/carrot.jpg', nutrition: ['β-胡萝卜素', '维生素K', '钾', '纤维'], desc: '胡萝卜颜色橙红，口感脆甜。胡萝卜素可在体内转化为维生素A。', benefit: '护眼明目，增强免疫力，抗氧化，促进皮肤健康。', tip: '表皮光滑、颜色鲜艳、粗细均匀、无分叉的为佳。' },
+            { id: 'potato', icon: '🥔', name: '土豆', en: 'Potato', category: 'vegetable', img: 'images/potato.jpg', nutrition: ['碳水化合物', '维生素C', '钾', '维生素B6'], desc: '土豆是全球第四大粮食作物，淀粉含量高，饱腹感强。', benefit: '补充能量，促进消化，保护心血管，缓解压力。', tip: '表皮光滑无芽、无青绿色、无软烂的为佳。发芽有毒勿食。' },
+            { id: 'eggplant', icon: '🍆', name: '茄子', en: 'Eggplant', category: 'vegetable', img: 'images/eggplant.jpg', nutrition: ['花青素', '维生素C', '钾', '纤维'], desc: '茄子果肉柔软，吸油能力强。紫色表皮含有丰富的花青素。', benefit: '抗氧化，保护心血管，降低胆固醇，清热解毒。', tip: '表皮光滑有光泽、捏起来有弹性、颜色均匀的为好。' },
+            { id: 'cucumber', icon: '🥒', name: '黄瓜', en: 'Cucumber', category: 'vegetable', img: 'images/cucumber.jpg', nutrition: ['维生素K', '钾', '水分', '硅'], desc: '黄瓜含水量高达95%以上，清脆爽口，是夏季消暑佳品。', benefit: '清热解暑，补水润肤，促进消化，辅助减肥。', tip: '瓜刺明显、瓜身挺直、颜色鲜绿、无软斑的为佳。' },
+            { id: 'chili', icon: '🌶️', name: '辣椒', en: 'Chili', category: 'vegetable', img: 'images/chili.jpg', nutrition: ['辣椒素', '维生素C', '维生素A', '钾'], desc: '辣椒能刺激食欲，增加菜肴风味。辣椒素具有多种健康功效。', benefit: '促进新陈代谢，止痛抗炎，增强免疫力，帮助减肥。', tip: '表皮光滑有光泽、果柄翠绿、无皱缩的辣椒更新鲜。' },
+            { id: 'corn', icon: '🌽', name: '玉米', en: 'Corn', category: 'vegetable', img: 'images/corn.jpg', nutrition: ['膳食纤维', '维生素B族', '叶黄素', '镁'], desc: '玉米是常见粗粮，口感甜糯。含有独特的叶黄素和玉米黄质。', benefit: '保护视力，促进消化，降低胆固醇，提供持久能量。', tip: '苞叶翠绿、玉米须湿润、颗粒饱满有光泽的更新鲜。' },
+            { id: 'onion', icon: '🧅', name: '洋葱', en: 'Onion', category: 'vegetable', img: 'images/onion.jpg', nutrition: ['槲皮素', '硫化物', '维生素C', '叶酸'], desc: '洋葱有紫白黄三种颜色，味道辛辣。切洋葱时流泪是因为含硫化合物。', benefit: '抗菌消炎，保护心血管，降低血糖，预防感冒。', tip: '表皮干燥完整、捏起来坚实、无发芽或软烂的为好。' },
+            { id: 'garlic', icon: '🧄', name: '大蒜', en: 'Garlic', category: 'vegetable', img: 'images/garlic.jpg', nutrition: ['大蒜素', '锰', '维生素B6', '硒'], desc: '大蒜是厨房必备调料，具有强烈的辛辣气味。大蒜素具有杀菌作用。', benefit: '强效抗菌，增强免疫力，降低胆固醇，预防血栓。', tip: '蒜瓣饱满、蒜皮完整干燥、无发芽或发霉的为佳。' },
+            { id: 'broccoli', icon: '🥦', name: '西兰花', en: 'Broccoli', category: 'vegetable', img: 'images/broccoli.jpg', nutrition: ['维生素C', '维生素K', '叶酸', '萝卜硫素'], desc: '西兰花是营养最全面的蔬菜之一，被誉为"蔬菜皇冠"。', benefit: '抗癌防癌，增强免疫力，保护视力，促进骨骼健康。', tip: '花球紧密、颜色鲜绿、无发黄或开花的为好。' },
+            { id: 'cabbage', icon: '🥬', name: '白菜', en: 'Chinese Cabbage', category: 'vegetable', img: 'images/cabbage.jpg', nutrition: ['维生素C', '维生素K', '纤维', '钾'], desc: '白菜是冬季主要蔬菜，价格亲民，营养丰富，耐储存。', benefit: '清热解毒，促进消化，补充水分，润肠通便。', tip: '叶片紧实、颜色嫩绿、无烂叶或黑点的为佳。' },
+            { id: 'mushroom', icon: '🍄', name: '蘑菇', en: 'Mushroom', category: 'vegetable', img: 'images/mushroom.jpg', nutrition: ['蛋白质', 'B族维生素', '硒', '钾'], desc: '蘑菇种类繁多，口感鲜美，被称为"植物肉"，蛋白质含量高。', benefit: '增强免疫力，降低胆固醇，抗氧化，补充维生素D。', tip: '菌盖完整、颜色正常、无黏液或异味的为好。' },
+            { id: 'peanut', icon: '🥜', name: '花生', en: 'Peanut', category: 'vegetable', img: 'images/peanut.jpg', nutrition: ['蛋白质', '不饱和脂肪酸', '维生素E', '烟酸'], desc: '花生是常见坚果和油料作物，营养丰富，可生食或熟食。', benefit: '保护心血管，增强记忆，延缓衰老，促进造血。', tip: '颗粒饱满、红衣完整、无霉变或哈喇味的为佳。' },
+            { id: 'beans', icon: '🫘', name: '豆类', en: 'Beans', category: 'vegetable', img: 'images/beans.jpg', nutrition: ['蛋白质', '膳食纤维', '铁', '叶酸'], desc: '豆类包括黄豆、绿豆、红豆等，是优质植物蛋白来源。', benefit: '补充蛋白质，降低胆固醇，稳定血糖，促进肠道健康。', tip: '颗粒饱满均匀、无虫蛀、无霉变的干豆为佳。' },
+            { id: 'pumpkin', icon: '🎃', name: '南瓜', en: 'Pumpkin', category: 'vegetable', img: 'images/pumpkin.jpg', nutrition: ['β-胡萝卜素', '维生素A', '钾', '纤维'], desc: '南瓜果肉金黄，口感甜糯。南瓜子也可食用，营养丰富。', benefit: '保护视力，健脾和胃，降血糖，增强免疫力。', tip: '表皮坚硬完整、瓜蒂干枯、敲声沉闷的南瓜成熟度高。' },
+            { id: 'radish', icon: '🥕', name: '萝卜', en: 'Radish', category: 'vegetable', img: 'images/radish.jpg', nutrition: ['维生素C', '膳食纤维', '钾', '芥子油'], desc: '萝卜有白萝卜、红萝卜等，口感清脆，水分充足。', benefit: '消食化痰，清热解毒，促进消化，增强免疫力。', tip: '表皮光滑无损伤、掂量沉重、无空心感的为好。' },
+            { id: 'sweetpotato', icon: '🥔', name: '红薯', en: 'Sweet Potato', category: 'vegetable', img: 'images/sweetpotato.jpg', nutrition: ['β-胡萝卜素', '维生素C', '纤维', '钾'], desc: '红薯口感甜糯，是优质粗粮。富含膳食纤维，饱腹感强。', benefit: '促进消化，保护视力，辅助减肥，稳定血糖。', tip: '表皮光滑无黑斑、形状均匀、无发芽或软烂的为佳。' },
+            { id: 'pepper', icon: '🫑', name: '彩椒', en: 'Bell Pepper', category: 'vegetable', img: 'images/pepper.jpg', nutrition: ['维生素C', '维生素A', '维生素B6', '叶酸'], desc: '彩椒有红、黄、绿、橙等多种颜色，口感清脆甜嫩。', benefit: '增强免疫力，抗氧化，保护视力，促进造血。', tip: '表皮光滑有光泽、果蒂翠绿、捏起来坚实的为佳。' },
+            { id: 'loofah', icon: '🥒', name: '丝瓜', en: 'Loofah', category: 'vegetable', img: 'images/loofah.jpg', nutrition: ['维生素C', 'B族维生素', '钾', '膳食纤维'], desc: '丝瓜口感滑嫩，成熟后可制成丝瓜络用于清洁。', benefit: '清热解毒，润肤美白，通经活络，促进消化。', tip: '表皮翠绿有光泽、瓜身挺直均匀、无软斑的为佳。' },
+            { id: 'spinach', icon: '🥬', name: '菠菜', en: 'Spinach', category: 'leaf', img: 'images/spinach.jpg', nutrition: ['铁', '叶酸', '维生素K', '维生素A'], desc: '菠菜有"营养模范生"之称，富含铁和叶酸。焯水后可去除草酸。', benefit: '补血养颜，保护视力，强健骨骼，促进消化。', tip: '叶片深绿完整、叶梗短粗、无黄叶或烂叶的为佳。' },
+            { id: 'lettuce', icon: '🥬', name: '生菜', en: 'Lettuce', category: 'leaf', img: 'images/lettuce.jpg', nutrition: ['维生素A', '维生素K', '叶酸', '纤维'], desc: '生菜口感清脆，水分充足，常用于沙拉或汉堡中。', benefit: '清热利尿，促进消化，辅助减肥，改善睡眠。', tip: '叶片翠绿挺拔、无黄叶或褐斑、根部不发黑的为佳。' },
+            { id: 'celery', icon: '🥬', name: '芹菜', en: 'Celery', category: 'leaf', img: 'images/celery.jpg', nutrition: ['维生素K', '叶酸', '钾', '纤维'], desc: '芹菜有特殊清香，茎秆脆嫩。芹菜叶的营养价值高于茎。', benefit: '降血压，促进消化，清热解毒，镇静安神。', tip: '茎秆挺直脆嫩、颜色鲜绿、叶片不发黄的为佳。' },
+            { id: 'chives', icon: '🥬', name: '韭菜', en: 'Chives', category: 'leaf', img: 'images/chives.jpg', nutrition: ['维生素A', '维生素C', '铁', '硫化物'], desc: '韭菜有独特的辛香味，有"起阳草"之称。可炒食或做馅。', benefit: '温肾助阳，促进消化，杀菌消炎，润肠通便。', tip: '叶片挺直翠绿、无黄叶、根部干净洁白的为佳。' },
+            { id: 'achoy', icon: '🥬', name: '油麦菜', en: 'A-Choy', category: 'leaf', img: 'images/achoy.jpg', nutrition: ['维生素A', '维生素C', '钙', '铁'], desc: '油麦菜口感脆嫩，味道清香微苦，是常见的绿叶蔬菜。', benefit: '清热降火，促进睡眠，降低胆固醇，利尿消肿。', tip: '叶片翠绿鲜嫩、无黄叶或烂叶、茎部不发红的为佳。' },
+            { id: 'crowndaisy', icon: '🥬', name: '茼蒿', en: 'Crown Daisy', category: 'leaf', img: 'images/crowndaisy.jpg', nutrition: ['维生素A', '维生素C', '钾', '纤维'], desc: '茼蒿有特殊香气，口感脆嫩。古时有"皇帝菜"之称。', benefit: '养心安神，促进消化，止咳化痰，润肠通便。', tip: '叶片嫩绿完整、无开花迹象、茎部脆嫩的为佳。' },
+            { id: 'cilantro', icon: '🥬', name: '香菜', en: 'Cilantro', category: 'leaf', img: 'images/cilantro.jpg', nutrition: ['维生素K', '维生素A', '维生素C', '铁'], desc: '香菜有特殊香气，常用于调味。喜欢的人深爱，不喜欢的人厌恶。', benefit: '开胃醒脾，促进消化，解毒透疹，缓解感冒。', tip: '叶片翠绿完整、茎部挺拔、无黄叶或腐烂的为佳。' },
+            { id: 'kale', icon: '🥬', name: '甘蓝', en: 'Kale', category: 'leaf', img: 'images/kale.jpg', nutrition: ['维生素K', '维生素A', '维生素C', '钙'], desc: '甘蓝是近年流行的超级食物，营养密度极高。', benefit: '强效抗氧化，保护视力，强健骨骼，抗炎排毒。', tip: '叶片深绿坚挺、无黄斑或虫眼、摸起来厚实的为佳。' },
+            { id: 'mustard', icon: '🥬', name: '芥菜', en: 'Mustard Greens', category: 'leaf', img: 'images/mustard.jpg', nutrition: ['维生素A', '维生素C', '维生素K', '钙'], desc: '芥菜味道微苦带辣，腌制后即成酸菜或梅干菜。', benefit: '开胃消食，解毒消肿，促进消化，增强免疫力。', tip: '叶片完整翠绿、无黄叶、茎部脆嫩不发空的为佳。' },
+            { id: 'waterspinach', icon: '🥬', name: '空心菜', en: 'Water Spinach', category: 'leaf', img: 'images/waterspinach.jpg', nutrition: ['维生素A', '维生素C', '钙', '铁'], desc: '空心菜茎中空，口感脆嫩，是夏季常见绿叶蔬菜。', benefit: '清热解毒，凉血止血，促进消化，辅助降血糖。', tip: '茎部挺直翠绿、叶片完整、无萎蔫或发黄的为佳。' },
+            { id: 'asparagus', icon: '🥬', name: '莴笋', en: 'Asparagus Lettuce', category: 'leaf', img: 'images/asparagus.jpg', nutrition: ['维生素K', '叶酸', '钾', '纤维'], desc: '莴笋茎秆可食用，口感清脆；嫩叶也可炒食。', benefit: '利尿通乳，促进消化，镇静安神，降低血压。', tip: '外皮薄嫩、断面色绿白、无空心或老化的为佳。' },
+            { id: 'cabbage2', icon: '🥬', name: '卷心菜', en: 'Cabbage', category: 'leaf', img: 'images/cabbage2.jpg', nutrition: ['维生素C', '维生素K', '纤维', '叶酸'], desc: '卷心菜叶片层层包裹，口感脆甜。耐储存，易于烹饪。', benefit: '抗溃疡，促进消化，抗氧化，增强免疫力。', tip: '球体紧实、叶片翠绿或白净、无虫眼或腐烂的为佳。' }
+        ];
+
+        function renderCards() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = produceData.map((item, index) => {
+                const cardId = `card-img-${index}`;
+                return `
+                <div class="card" data-category="${item.category}" data-id="${item.id}">
+                    <div class="card-img" id="${cardId}">
+                        <div class="loading-placeholder">
+                            <div class="loading-spinner"></div>
+                        </div>
+                        <img src="${item.img}" alt="${item.name}" loading="lazy" data-card-id="${cardId}"
+                             onload="document.getElementById('${cardId}').querySelector('.loading-placeholder').classList.add('loaded');"
+                             onerror="handleImageError(this, '${item.name}', '${item.icon}', '${cardId}')">
+                        <div class="card-img-fallback">${item.icon}</div>
+                    </div>
+                    <div class="card-info">
+                        <div class="card-name">${item.name}</div>
+                        <div class="card-en">${item.en}</div>
+                        <div class="card-divider"></div>
+                        <span class="card-tag">${getCategoryName(item.category)}</span>
+                    </div>
+                </div>
+            `}).join('');
+
+            document.querySelectorAll('.card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const id = card.dataset.id;
+                    const item = produceData.find(p => p.id === id);
+                    if (item) openModal(item);
+                });
+            });
+
+            initCardTilt();
+        }
+
+        function handleImageError(img, name, icon, cardId) {
+            const container = document.getElementById(cardId);
+            container.querySelector('.loading-placeholder').classList.add('loaded');
+            img.style.display = 'none';
+            container.querySelector('.card-img-fallback').style.display = 'flex';
+        }
+
+        function getCategoryName(cat) {
+            const map = { fruit: '水果', vegetable: '蔬菜', berry: '浆果', citrus: '柑橘', leaf: '叶菜' };
+            return map[cat] || cat;
+        }
+
+        const modalOverlay = document.getElementById('modalOverlay');
+        const modalClose = document.getElementById('modalClose');
+        const modalImg = document.getElementById('modalImg');
+        const modalIconFallback = document.getElementById('modalIconFallback');
+
+        function openModal(item) {
+            modalImg.src = item.img;
+            modalImg.alt = item.name;
+            modalImg.style.display = 'block';
+            modalImg.parentElement.querySelector('.modal-img-fallback').style.display = 'none';
+            modalIconFallback.textContent = item.icon;
+
+            document.getElementById('modalTitle').textContent = item.name;
+            document.getElementById('modalEn').textContent = item.en;
+
+            document.getElementById('modalBody').innerHTML = `
+                <div class="info-section">
+                    <div class="info-title">简介</div>
+                    <div class="info-content">${item.desc}</div>
+                </div>
+                <div class="info-section">
+                    <div class="info-title">主要营养</div>
+                    <div class="nutrition-tags">
+                        ${item.nutrition.map(n => `<span class="nutrition-tag">${n}</span>`).join('')}
+                    </div>
+                </div>
+                <div class="info-section">
+                    <div class="info-title">健康功效</div>
+                    <div class="info-content">${item.benefit}</div>
+                </div>
+                <div class="info-section">
+                    <div class="info-title">挑选技巧</div>
+                    <div class="tip-box">${item.tip}</div>
+                </div>
+            `;
+
+            modalOverlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            modalOverlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        modalClose.addEventListener('click', closeModal);
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) closeModal();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const filter = btn.dataset.filter;
+                document.querySelectorAll('.card').forEach(card => {
+                    if (filter === 'all' || card.dataset.category === filter) {
+                        card.classList.remove('hidden');
+                    } else {
+                        card.classList.add('hidden');
+                    }
+                });
+            });
+        });
+
+        const cursorGlow = document.getElementById('cursorGlow');
+        let mouseX = 50, mouseY = 50;
+        let targetX = 50, targetY = 50;
+
+        document.addEventListener('mousemove', (e) => {
+            targetX = (e.clientX / window.innerWidth) * 100;
+            targetY = (e.clientY / window.innerHeight) * 100;
+        });
+
+        function animateCursorGlow() {
+            mouseX += (targetX - mouseX) * 0.08;
+            mouseY += (targetY - mouseY) * 0.08;
+            cursorGlow.style.setProperty('--mouse-x', mouseX + '%');
+            cursorGlow.style.setProperty('--mouse-y', mouseY + '%');
+            requestAnimationFrame(animateCursorGlow);
+        }
+        animateCursorGlow();
+
+        const heroBg = document.getElementById('heroBg');
+        const heroContent = document.getElementById('heroContent');
+
+        document.addEventListener('mousemove', (e) => {
+            const x = (e.clientX / window.innerWidth - 0.5) * 2;
+            const y = (e.clientY / window.innerHeight - 0.5) * 2;
+            heroBg.style.transform = `translate(${-x * 12}px, ${-y * 8}px) scale(1.05)`;
+            heroContent.style.transform = `translate(${x * 8}px, ${y * 5}px)`;
+        });
+
+        function initCardTilt() {
+            document.querySelectorAll('.card').forEach(card => {
+                card.addEventListener('mousemove', (e) => {
+                    const rect = card.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    const centerX = rect.width / 2;
+                    const centerY = rect.height / 2;
+                    const rotateX = ((y - centerY) / centerY) * -8;
+                    const rotateY = ((x - centerX) / centerX) * 8;
+                    card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateZ(10px) translateY(-4px)`;
+                });
+
+                card.addEventListener('mouseleave', () => {
+                    card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) translateZ(0) translateY(0)';
+                    card.style.transition = 'transform 0.4s ease-out';
+                    setTimeout(() => {
+                        card.style.transition = 'transform 0.1s ease-out, box-shadow 0.3s ease, border-color 0.3s ease';
+                    }, 400);
+                });
+            });
+        }
+
+        renderCards();
+    </script>
+</body>
+</html>
